@@ -5,6 +5,23 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Resolve paths relative to THIS file, not process.cwd()
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from backend/.env
+// Uses the absolute path relative to server.js so it works regardless of
+// which directory the process was started from (project root, backend/, etc.)
+const envPath = path.resolve(__dirname, '..', '.env');
+const dotenvResult = dotenv.config({ path: envPath });
+
+if (dotenvResult.error) {
+  console.warn(`⚠️  Could not load .env from ${envPath}: ${dotenvResult.error.message}`);
+  console.warn('   Falling back to process environment variables.');
+} else {
+  console.log(`✅ Loaded environment from ${envPath}`);
+}
+
 import { connectDatabase } from './config/database.js';
 import healthRoutes from './routes/health.routes.js';
 import voiceRoutes from './routes/voice.routes.js';
@@ -13,12 +30,6 @@ import conversationRoutes from './routes/conversation.routes.js';
 import { VoiceController } from './controllers/voice.controller.js';
 import { audioUpload } from './middleware/upload.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-
-// Load environment variables
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -89,6 +100,10 @@ app.use(errorHandler);
 export const startServer = async () => {
   await connectDatabase();
 
+  // Log API key status at startup so issues are immediately visible
+  const gnaniKey = process.env.GNANI_API_KEY;
+  const gnaniConfigured = gnaniKey && gnaniKey.trim() !== '' && gnaniKey !== 'your_gnani_api_key_here';
+
   return new Promise((resolve) => {
     const serverInstance = app.listen(PORT, () => {
       console.log(`
@@ -98,6 +113,9 @@ export const startServer = async () => {
     URL:  http://localhost:${PORT}
     Health: http://localhost:${PORT}/api/health
     Docs: https://docs.gnani.ai/
+
+    GNANI_API_KEY: ${gnaniConfigured ? '✅ Configured (key loaded)' : '❌ NOT SET — STT/TTS will fail'}
+    AI Provider:   ${process.env.AI_PROVIDER || 'local_intelligent'}
 ====================================================
       `);
       resolve(serverInstance);

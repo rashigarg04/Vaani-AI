@@ -1,13 +1,17 @@
+
 import { Router } from 'express';
 import { VoiceController } from '../controllers/voice.controller.js';
 import { audioUpload } from '../middleware/upload.js';
 
 const router = Router();
 
-// GET /api/voice/status
+// GET: Check Gnani STT and TTS service status
 router.get('/status', VoiceController.getStatus);
 
-// POST /api/voice/transcribe (accepts file under 'audio' or 'audio_file')
+// POST: Convert text into speech using Gnani Timbre
+router.post('/synthesize', VoiceController.synthesize);
+
+// POST: Convert uploaded audio into text using Gnani Prisma
 router.post(
   '/transcribe',
   audioUpload.fields([
@@ -15,13 +19,13 @@ router.post(
     { name: 'audio_file', maxCount: 1 }
   ]),
   (req, res, next) => {
-    // Map either field to req.file
-    req.file = req.files?.audio?.[0] || req.files?.audio_file?.[0] || req.file;
+    req.file =
+      req.files?.audio?.[0] ||
+      req.files?.audio_file?.[0] ||
+      null;
+
     VoiceController.transcribe(req, res, next);
   }
 );
-
-// POST /api/voice/synthesize
-router.post('/synthesize', VoiceController.synthesize);
 
 export default router;
